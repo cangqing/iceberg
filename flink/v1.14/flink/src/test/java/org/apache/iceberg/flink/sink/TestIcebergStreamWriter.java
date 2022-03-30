@@ -48,6 +48,7 @@ import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.flink.SimpleDataUtil;
+import org.apache.iceberg.flink.TableLoader;
 import org.apache.iceberg.hadoop.HadoopTables;
 import org.apache.iceberg.io.WriteResult;
 import org.apache.iceberg.relocated.com.google.common.collect.ImmutableMap;
@@ -70,6 +71,7 @@ public class TestIcebergStreamWriter {
   public TemporaryFolder tempFolder = new TemporaryFolder();
 
   private String tablePath;
+  private TableLoader tableLoader;
   private Table table;
 
   private final FileFormat format;
@@ -96,7 +98,7 @@ public class TestIcebergStreamWriter {
   public void before() throws IOException {
     File folder = tempFolder.newFolder();
     tablePath = folder.getAbsolutePath();
-
+    tableLoader = TableLoader.fromHadoopTable(tablePath);
     // Construct the iceberg table.
     Map<String, String> props = ImmutableMap.of(TableProperties.DEFAULT_FILE_FORMAT, format.name());
     table = SimpleDataUtil.createTable(tablePath, props, partitioned);
@@ -314,8 +316,7 @@ public class TestIcebergStreamWriter {
         record.copy(ImmutableMap.of("tinyint", 3, "smallint", 32767, "int", 103))
     );
 
-    try (OneInputStreamOperatorTestHarness<RowData, WriteResult> testHarness = createIcebergStreamWriter(icebergTable,
-        flinkSchema)) {
+    try (OneInputStreamOperatorTestHarness<RowData, WriteResult> testHarness = createIcebergStreamWriter(tableLoader)) {
       for (RowData row : rows) {
         testHarness.processElement(row, 1);
       }
@@ -334,13 +335,12 @@ public class TestIcebergStreamWriter {
   }
 
   private OneInputStreamOperatorTestHarness<RowData, WriteResult> createIcebergStreamWriter() throws Exception {
-    return createIcebergStreamWriter(table, SimpleDataUtil.FLINK_SCHEMA);
+    return createIcebergStreamWriter(tableLoader);
   }
 
   private OneInputStreamOperatorTestHarness<RowData, WriteResult> createIcebergStreamWriter(
-      Table icebergTable, TableSchema flinkSchema) throws Exception {
-    RowType flinkRowType = FlinkSink.toFlinkRowType(icebergTable.schema(), flinkSchema);
-    IcebergStreamWriter<RowData> streamWriter = FlinkSink.createStreamWriter(icebergTable, flinkRowType, null, false);
+          TableLoader icebergTableLoader) throws Exception {
+    IcebergStreamWriter<RowData> streamWriter = FlinkSink.createStreamWriter(icebergTableLoader, null, false);
     OneInputStreamOperatorTestHarness<RowData, WriteResult> harness = new OneInputStreamOperatorTestHarness<>(
         streamWriter, 1, 1, 0);
 

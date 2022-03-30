@@ -291,7 +291,7 @@ public class FlinkSink {
           rowDataInput, table.properties(), table.spec(), table.schema(), flinkRowType);
 
       // Add parallel writers that append rows to files
-      SingleOutputStreamOperator<WriteResult> writerStream = appendWriter(distributeStream, flinkRowType);
+      SingleOutputStreamOperator<WriteResult> writerStream = appendWriter(distributeStream);
 
       // Add single-parallelism committer that commits files
       // after successful checkpoint or end of input
@@ -350,7 +350,7 @@ public class FlinkSink {
       return committerStream;
     }
 
-    private SingleOutputStreamOperator<WriteResult> appendWriter(DataStream<RowData> input, RowType flinkRowType) {
+    private SingleOutputStreamOperator<WriteResult> appendWriter(DataStream<RowData> input) {
       // Find out the equality field id list based on the user-provided equality field column names.
       List<Integer> equalityFieldIds = Lists.newArrayList();
       if (equalityFieldColumns != null && equalityFieldColumns.size() > 0) {
@@ -381,7 +381,7 @@ public class FlinkSink {
         }
       }
 
-      IcebergStreamWriter<RowData> streamWriter = createStreamWriter(table, flinkRowType, equalityFieldIds, upsertMode);
+      IcebergStreamWriter<RowData> streamWriter = createStreamWriter(tableLoader, equalityFieldIds, upsertMode);
 
       int parallelism = writeParallelism == null ? input.getParallelism() : writeParallelism;
       SingleOutputStreamOperator<WriteResult> writerStream = input
@@ -448,31 +448,11 @@ public class FlinkSink {
     }
   }
 
-  static IcebergStreamWriter<RowData> createStreamWriter(Table table,
-                                                         RowType flinkRowType,
+  static IcebergStreamWriter<RowData> createStreamWriter(TableLoader tableLoader,
                                                          List<Integer> equalityFieldIds,
                                                          boolean upsert) {
-    Preconditions.checkArgument(table != null, "Iceberg table should't be null");
-    Map<String, String> props = table.properties();
-    long targetFileSize = getTargetFileSizeBytes(props);
-    FileFormat fileFormat = getFileFormat(props);
+    Preconditions.checkArgument(tableLoader != null, "Iceberg tableLoader should't be null");
 
-    Table serializableTable = SerializableTable.copyOf(table);
-    TaskWriterFactory<RowData> taskWriterFactory = new RowDataTaskWriterFactory(
-        serializableTable, flinkRowType, targetFileSize,
-        fileFormat, equalityFieldIds, upsert);
-
-    return new IcebergStreamWriter<>(table.name(), taskWriterFactory);
-  }
-
-  private static FileFormat getFileFormat(Map<String, String> properties) {
-    String formatString = properties.getOrDefault(DEFAULT_FILE_FORMAT, DEFAULT_FILE_FORMAT_DEFAULT);
-    return FileFormat.valueOf(formatString.toUpperCase(Locale.ENGLISH));
-  }
-
-  private static long getTargetFileSizeBytes(Map<String, String> properties) {
-    return PropertyUtil.propertyAsLong(properties,
-        WRITE_TARGET_FILE_SIZE_BYTES,
-        WRITE_TARGET_FILE_SIZE_BYTES_DEFAULT);
+    return new IcebergStreamWriter<>(tableLoader, equalityFieldIds,upsert);
   }
 }

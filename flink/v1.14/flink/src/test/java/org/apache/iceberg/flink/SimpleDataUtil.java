@@ -106,23 +106,23 @@ public class SimpleDataUtil {
   }
 
   public static RowData createRowData(Integer id, String data) {
-    return GenericRowData.of(id, StringData.fromString(data));
+    return GenericRowDataWithSchema.of(id, StringData.fromString(data));
   }
 
   public static RowData createInsert(Integer id, String data) {
-    return GenericRowData.ofKind(RowKind.INSERT, id, StringData.fromString(data));
+    return GenericRowDataWithSchema.ofKind(RowKind.INSERT, id, StringData.fromString(data));
   }
 
   public static RowData createDelete(Integer id, String data) {
-    return GenericRowData.ofKind(RowKind.DELETE, id, StringData.fromString(data));
+    return GenericRowDataWithSchema.ofKind(RowKind.DELETE, id, StringData.fromString(data));
   }
 
   public static RowData createUpdateBefore(Integer id, String data) {
-    return GenericRowData.ofKind(RowKind.UPDATE_BEFORE, id, StringData.fromString(data));
+    return GenericRowDataWithSchema.ofKind(RowKind.UPDATE_BEFORE, id, StringData.fromString(data));
   }
 
   public static RowData createUpdateAfter(Integer id, String data) {
-    return GenericRowData.ofKind(RowKind.UPDATE_AFTER, id, StringData.fromString(data));
+    return GenericRowDataWithSchema.ofKind(RowKind.UPDATE_AFTER, id, StringData.fromString(data));
   }
 
   public static DataFile writeFile(Schema schema, PartitionSpec spec, Configuration conf,
